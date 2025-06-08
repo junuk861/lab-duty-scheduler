@@ -37,6 +37,7 @@ selected_year = st.selectbox("Select year", [2025, 2026])
 start_date = st.date_input("Select start date (Week 1 begins)", datetime(selected_year, 1, 1))
 total_weeks = st.number_input("Enter total number of weeks", min_value=1, max_value=52, value=5)
 
+
 # Ensure 5-week rotation
 def rotate_list(lst, shift):
     return lst[shift:] + lst[:shift]
