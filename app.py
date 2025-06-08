@@ -35,13 +35,14 @@ for line in task_lines:
 st.subheader("Schedule Settings")
 selected_year = st.selectbox("Select year", [2025, 2026])
 start_date = st.date_input("Select start date (Week 1 begins)", datetime(selected_year, 1, 1))
+total_weeks = st.number_input("Enter total number of weeks", min_value=1, max_value=52, value=5)
 
 # Ensure 5-week rotation
 def rotate_list(lst, shift):
     return lst[shift:] + lst[:shift]
 
 # Schedule generation logic with holiday skipping and custom task frequency
-def generate_schedule(names, year, start_date, custom_tasks):
+def generate_schedule(names, year, start_date, custom_tasks, total_weeks):
     schedule = []
     num = len(names)
     us_holidays = holidays.US(years=year)
@@ -52,7 +53,7 @@ def generate_schedule(names, year, start_date, custom_tasks):
 
     weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
-    for week in range(5):
+    for week in range(total_weeks):
         week_label = f"Week {week+1}"
         rot = rotate_list(names, week % num)
 
@@ -87,7 +88,7 @@ def generate_schedule(names, year, start_date, custom_tasks):
 
 # Generate and display schedule
 if len(names) == num_people:
-    df_schedule = generate_schedule(names, selected_year, start_date, custom_tasks)
+    df_schedule = generate_schedule(names, selected_year, start_date, custom_tasks, total_weeks)
     st.success("Schedule generated successfully!")
     st.dataframe(df_schedule, use_container_width=True)
 
