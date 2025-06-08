@@ -5,7 +5,7 @@ from io import BytesIO
 from datetime import datetime, timedelta
 import holidays
 
-st.title("🔬 Lab Duty Scheduler with Holiday Skipping")
+st.title("🔬 Lab Duty Scheduler with Holiday Skipping and Custom Tasks")
 
 # User input for number of people
 num_people = st.selectbox("Select number of lab members (3–5):", [3, 4, 5])
@@ -18,6 +18,11 @@ for i in range(num_people):
     if name:
         names.append(name)
 
+# Task input
+st.subheader("Customize Tasks")
+default_tasks = ["Autoclave/Glassware", "Sink Cleaning (Tue/Fri)", "70% Ethanol Prep (Mon only)"]
+task_list = st.text_area("Enter tasks (one per line):", "\n".join(default_tasks)).splitlines()
+
 # Year and start date input
 st.subheader("Schedule Settings")
 selected_year = st.selectbox("Select year", [2025, 2026])
@@ -27,8 +32,8 @@ start_date = st.date_input("Select start date (Week 1 begins)", datetime(selecte
 def rotate_list(lst, shift):
     return lst[shift:] + lst[:shift]
 
-# Schedule generation logic with holiday skipping
-def generate_schedule(names, year, start_date):
+# Schedule generation logic with holiday skipping and custom tasks
+def generate_schedule(names, year, start_date, tasks):
     schedule = []
     num = len(names)
     us_holidays = holidays.US(years=year)
@@ -49,29 +54,30 @@ def generate_schedule(names, year, start_date):
             if date in us_holidays:
                 continue  # 공휴일이면 건너뛰기
 
-            if day == "Mon":
-                auto = ", ".join(rot[:2])
-                sink = ", ".join(rot[:2])
-                ethanol = rot[2 % num]
-            else:
-                auto = rot[(["Wed", "Thu", "Fri"].index(day) + 2) % num]
-                sink = ", ".join(rot[:2]) if day == "Fri" else ""
-                ethanol = ""
-
-            schedule.append({
+            entry = {
                 "Week": week_label,
                 "Date": date.strftime("%Y-%m-%d"),
                 "Day": day,
-                "Autoclave/Glassware": auto,
-                "Sink Cleaning (Tue/Fri)": sink,
-                "70% Ethanol Prep (Mon only)": ethanol
-            })
+            }
+
+            for i, task in enumerate(tasks):
+                if task == "70% Ethanol Prep (Mon only)":
+                    entry[task] = rot[i % num] if day == "Mon" else ""
+                elif task == "Sink Cleaning (Tue/Fri)":
+                    entry[task] = ", ".join(rot[:2]) if day == "Fri" else ""
+                else:
+                    if day == "Mon":
+                        entry[task] = ", ".join(rot[:2])
+                    else:
+                        entry[task] = rot[(i + 2) % num]
+
+            schedule.append(entry)
 
     return pd.DataFrame(schedule)
 
 # Generate and display schedule
-if len(names) == num_people:
-    df_schedule = generate_schedule(names, selected_year, start_date)
+if len(names) == num_people and task_list:
+    df_schedule = generate_schedule(names, selected_year, start_date, task_list)
     st.success("Schedule generated successfully!")
     st.dataframe(df_schedule, use_container_width=True)
 
