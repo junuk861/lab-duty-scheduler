@@ -7,7 +7,7 @@ import holidays
 
 st.title("🔬 Lab Duty Scheduler with Holiday Skipping and Custom Tasks")
 
-# User input for number of people
+# User input for number of lab members
 num_people = st.selectbox("Select number of lab members (3–5):", [3, 4, 5])
 
 # Name inputs
@@ -19,9 +19,17 @@ for i in range(num_people):
         names.append(name)
 
 # Task input
-st.subheader("Customize Tasks")
+st.subheader("Add Additional Tasks (format: Task Name, Times per Week)")
 default_tasks = ["Autoclave/Glassware", "Sink Cleaning (Tue/Fri)", "70% Ethanol Prep (Mon only)"]
-task_list = st.text_area("Enter tasks (one per line):", "\n".join(default_tasks)).splitlines()
+additional_input = st.text_area("Enter tasks (one per line):", "")
+task_lines = [line.strip() for line in additional_input.splitlines() if line.strip()]
+custom_tasks = []
+for line in task_lines:
+    try:
+        task_name, freq = line.split(",")
+        custom_tasks.append((task_name.strip(), int(freq.strip())))
+    except:
+        st.warning(f"Invalid format: {line}")
 
 # Year and start date input
 st.subheader("Schedule Settings")
@@ -32,27 +40,28 @@ start_date = st.date_input("Select start date (Week 1 begins)", datetime(selecte
 def rotate_list(lst, shift):
     return lst[shift:] + lst[:shift]
 
-# Schedule generation logic with holiday skipping and custom tasks
-def generate_schedule(names, year, start_date, tasks):
+# Schedule generation logic with holiday skipping and custom task frequency
+def generate_schedule(names, year, start_date, custom_tasks):
     schedule = []
     num = len(names)
     us_holidays = holidays.US(years=year)
+
+    fixed_tasks = [
+        ("Autoclave/Glassware", ["Mon", "Wed", "Thu", "Fri"]),
+        ("Sink Cleaning (Tue/Fri)", ["Fri"]),
+        ("70% Ethanol Prep (Mon only)", ["Mon"])
+    ]
+
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
     for week in range(5):
         week_label = f"Week {week+1}"
         rot = rotate_list(names, week % num)
 
-        # 요일별 날짜 계산
-        week_days = {
-            "Mon": start_date + timedelta(days=week * 7 + 0),
-            "Wed": start_date + timedelta(days=week * 7 + 2),
-            "Thu": start_date + timedelta(days=week * 7 + 3),
-            "Fri": start_date + timedelta(days=week * 7 + 4),
-        }
-
-        for day, date in week_days.items():
+        for i, day in enumerate(weekdays):
+            date = start_date + timedelta(days=week * 7 + i)
             if date in us_holidays:
-                continue  # 공휴일이면 건너뛰기
+                continue
 
             entry = {
                 "Week": week_label,
@@ -60,24 +69,32 @@ def generate_schedule(names, year, start_date, tasks):
                 "Day": day,
             }
 
-            for i, task in enumerate(tasks):
-                if task == "70% Ethanol Prep (Mon only)":
-                    entry[task] = rot[i % num] if day == "Mon" else ""
-                elif task == "Sink Cleaning (Tue/Fri)":
-                    entry[task] = ", ".join(rot[:2]) if day == "Fri" else ""
-                else:
-                    if day == "Mon":
+            # Fixed tasks
+            for task, days in fixed_tasks:
+                if day in days:
+                    if task == "Autoclave/Glassware":
+                        entry[task] = ", ".join(rot[:2]) if day == "Mon" else rot[(i + 1) % num]
+                    elif task == "Sink Cleaning (Tue/Fri)":
                         entry[task] = ", ".join(rot[:2])
-                    else:
-                        entry[task] = rot[(i + 2) % num]
+                    elif task == "70% Ethanol Prep (Mon only)":
+                        entry[task] = rot[2 % num]
+                else:
+                    entry[task] = ""
+
+            # Custom tasks by frequency
+            for task_name, freq in custom_tasks:
+                if freq >= 5 or i < freq:
+                    entry[task_name] = rot[i % num]
+                else:
+                    entry[task_name] = ""
 
             schedule.append(entry)
 
     return pd.DataFrame(schedule)
 
 # Generate and display schedule
-if len(names) == num_people and task_list:
-    df_schedule = generate_schedule(names, selected_year, start_date, task_list)
+if len(names) == num_people:
+    df_schedule = generate_schedule(names, selected_year, start_date, custom_tasks)
     st.success("Schedule generated successfully!")
     st.dataframe(df_schedule, use_container_width=True)
 
