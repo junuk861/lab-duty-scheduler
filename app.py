@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from io import BytesIO
@@ -31,21 +30,20 @@ for line in task_lines:
     except:
         st.warning(f"Invalid format: {line}")
 
-# Year and start date input
+# Start date and week number input
 st.subheader("Schedule Settings")
-selected_year = st.selectbox("Select year", [2025, 2026])
-start_date = st.date_input("Select start date (Week 1 begins)", datetime(selected_year, 1, 1))
+start_date = st.date_input("Select start date (Week 1 begins)", datetime.today())
 total_weeks = st.number_input("Enter total number of weeks", min_value=1, max_value=52, value=5)
-
 
 # Ensure 5-week rotation
 def rotate_list(lst, shift):
     return lst[shift:] + lst[:shift]
 
 # Schedule generation logic with holiday skipping and custom task frequency
-def generate_schedule(names, year, start_date, custom_tasks, total_weeks):
+def generate_schedule(names, start_date, custom_tasks, total_weeks):
     schedule = []
     num = len(names)
+    year = start_date.year
     us_holidays = holidays.US(years=year)
 
     fixed_tasks = [
@@ -89,7 +87,7 @@ def generate_schedule(names, year, start_date, custom_tasks, total_weeks):
 
 # Generate and display schedule
 if len(names) == num_people:
-    df_schedule = generate_schedule(names, selected_year, start_date, custom_tasks, total_weeks)
+    df_schedule = generate_schedule(names, start_date, custom_tasks, total_weeks)
     st.success("Schedule generated successfully!")
     st.dataframe(df_schedule, use_container_width=True)
 
